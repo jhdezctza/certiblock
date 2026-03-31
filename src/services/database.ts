@@ -1,11 +1,21 @@
 import type { Certificate, Student, User } from '@/types'
 import { PrismaClient } from '@prisma/client'
+import { createHash } from 'crypto'
 
 class DatabaseService {
   private prisma: PrismaClient
 
   constructor() {
     this.prisma = new PrismaClient()
+  }
+
+  private static sha256Hex(input: string): string {
+    return createHash('sha256').update(input).digest('hex')
+  }
+
+  private static truncateForLegacyHash(input: string): string {
+    // Mantener compatibilidad con columna hash VARCHAR(191)
+    return input.length > 191 ? input.slice(0, 191) : input
   }
 
   async findStudentByMatricula(matricula: string): Promise<Student | null> {
@@ -39,18 +49,36 @@ class DatabaseService {
   }
 
   async findCertificateByHash(hash: string): Promise<Certificate | null> {
-    console.error('hash', hash)
-    const cert = await this.prisma.certificate.findUnique({
-      where: { hash }
+    const digest = DatabaseService.sha256Hex(hash)
+
+    // 1) Buscar por digest (forma recomendada / no se trunca)
+    // Nota: en algunos entornos el tipado de Prisma puede quedar desfasado hasta regenerar/reiniciar TS server.
+    // Usamos cast a any para no bloquear compilación.
+    const byDigest = await (this.prisma.certificate as any).findUnique({
+      where: { hashDigest: digest }
     })
-    console.error('cert', cert)
+    const cert = byDigest || await (this.prisma.certificate as any).findFirst({
+      // 2) Fallback: buscar por JWT completo (si se guardó)
+      where: {
+        OR: [
+          { hashFull: hash },
+          // 3) Legacy: hash truncado guardado en `hash`
+          { hash: hash },
+          { hash: { startsWith: hash.slice(0, 50) } }
+        ]
+      },
+      orderBy: { createdAt: 'desc' }
+    })
+
     return cert ? {
-      id: cert.id,
-      matricula: cert.matricula,
-      hash: cert.hash,
-      ipfs_hash: cert.ipfsHash || undefined,
-      blockchain_tx: cert.blockchainTx || undefined,
-      created_at: cert.createdAt.toISOString()
+      id: (cert as any).id,
+      matricula: (cert as any).matricula,
+      hash: (cert as any).hash,
+      hash_full: (cert as any).hashFull || undefined,
+      hash_digest: (cert as any).hashDigest || undefined,
+      ipfs_hash: (cert as any).ipfsHash || undefined,
+      blockchain_tx: (cert as any).blockchainTx || undefined,
+      created_at: (cert as any).createdAt.toISOString()
     } : null
   }
 
@@ -61,32 +89,41 @@ class DatabaseService {
     })
 
     return cert ? {
-      id: cert.id,
-      matricula: cert.matricula,
-      hash: cert.hash,
-      ipfs_hash: cert.ipfsHash || undefined,
-      blockchain_tx: cert.blockchainTx || undefined,
-      created_at: cert.createdAt.toISOString()
+      id: (cert as any).id,
+      matricula: (cert as any).matricula,
+      hash: (cert as any).hash,
+      hash_full: (cert as any).hashFull || undefined,
+      hash_digest: (cert as any).hashDigest || undefined,
+      ipfs_hash: (cert as any).ipfsHash || undefined,
+      blockchain_tx: (cert as any).blockchainTx || undefined,
+      created_at: (cert as any).createdAt.toISOString()
     } : null
   }
 
   async createCertificate(certificate: Omit<Certificate, 'id' | 'created_at'>): Promise<Certificate> {
+    const fullHash = certificate.hash
+    const digest = DatabaseService.sha256Hex(fullHash)
+    const legacyHash = DatabaseService.truncateForLegacyHash(fullHash)
+
     const created = await this.prisma.certificate.create({
       data: {
         matricula: certificate.matricula,
-        hash: certificate.hash,
+        hash: legacyHash,
+        ...( { hashFull: fullHash, hashDigest: digest } as any ),
         ipfsHash: certificate.ipfs_hash,
         blockchainTx: certificate.blockchain_tx
       }
     })
 
     return {
-      id: created.id,
-      matricula: created.matricula,
-      hash: created.hash,
-      ipfs_hash: created.ipfsHash || undefined,
-      blockchain_tx: created.blockchainTx || undefined,
-      created_at: created.createdAt.toISOString()
+      id: (created as any).id,
+      matricula: (created as any).matricula,
+      hash: (created as any).hash,
+      hash_full: (created as any).hashFull || undefined,
+      hash_digest: (created as any).hashDigest || undefined,
+      ipfs_hash: (created as any).ipfsHash || undefined,
+      blockchain_tx: (created as any).blockchainTx || undefined,
+      created_at: (created as any).createdAt.toISOString()
     }
   }
 

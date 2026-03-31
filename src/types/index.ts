@@ -17,6 +17,8 @@ export interface Certificate {
   id: number
   matricula: string
   hash: string
+  hash_full?: string
+  hash_digest?: string
   ipfs_hash?: string
   blockchain_tx?: string
   created_at?: string

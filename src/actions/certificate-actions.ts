@@ -7,6 +7,7 @@ import { JWTService } from '@/services/jwt'
 import { PDFService } from '@/services/pdf-service'
 import type { CertificateData, Student, VerificationResult } from '@/types'
 import { redirect } from 'next/navigation'
+import { createHash } from 'crypto'
 
 function normalizeHash(input: string): string {
   const trimmed = input.trim()
@@ -16,6 +17,10 @@ function normalizeHash(input: string): string {
   } catch {
     return trimmed
   }
+}
+
+function sha256Hex(input: string): string {
+  return createHash('sha256').update(input).digest('hex')
 }
 
 export async function searchStudentAction(matricula: string): Promise<{ student: Student | null }> {
@@ -125,7 +130,8 @@ export async function generateCertificateAction(matricula: string): Promise<{
 
     try {
       const blockchainService = new BlockchainService()
-      const blockchainResult = await blockchainService.registerCertificate(hash)
+      const digest = sha256Hex(hash)
+      const blockchainResult = await blockchainService.registerCertificate(digest)
 
       if (blockchainResult.success && blockchainResult.transactionHash) {
         blockchainTxHash = blockchainResult.transactionHash
@@ -276,14 +282,25 @@ export async function verifyCertificateAction(hash: string): Promise<Verificatio
 
     try {
       const blockchainService = new BlockchainService()
-      const blockchainVerification = await blockchainService.verifyCertificate(normalizedHash)
+      const digest = sha256Hex(normalizedHash)
+      let blockchainVerification = await blockchainService.verifyCertificate(digest)
+      // Legacy fallback: si previamente se registró el JWT completo, intentar con el JWT también.
+      if (!blockchainVerification.exists) {
+        blockchainVerification = await blockchainService.verifyCertificate(normalizedHash)
+      }
       blockchainVerified = blockchainVerification.exists
       if (blockchainVerification.exists) {
         blockchainTx = certificate.blockchain_tx
       } else {
         // Fallback: si existe tx en BD, verificar por receipt/evento.
         if (certificate.blockchain_tx) {
-          const byTx = await blockchainService.verifyCertificateByTransaction(certificate.blockchain_tx, normalizedHash)
+          // Intentar validar que el evento coincida con el digest (forma nueva); si no, con el JWT (forma vieja)
+          const byTxDigest = await blockchainService.verifyCertificateByTransaction(certificate.blockchain_tx, digest)
+          const byTxJwt = byTxDigest.exists
+            ? byTxDigest
+            : await blockchainService.verifyCertificateByTransaction(certificate.blockchain_tx, normalizedHash)
+
+          const byTx = byTxJwt
           blockchainVerified = byTx.exists
           blockchainTx = certificate.blockchain_tx
           if (!byTx.exists) {
