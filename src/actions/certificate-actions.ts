@@ -8,6 +8,16 @@ import { PDFService } from '@/services/pdf-service'
 import type { CertificateData, Student, VerificationResult } from '@/types'
 import { redirect } from 'next/navigation'
 
+function normalizeHash(input: string): string {
+  const trimmed = input.trim()
+  if (!trimmed) return trimmed
+  try {
+    return trimmed.includes('%') ? decodeURIComponent(trimmed) : trimmed
+  } catch {
+    return trimmed
+  }
+}
+
 export async function searchStudentAction(matricula: string): Promise<{ student: Student | null }> {
   if (!matricula || matricula.trim().length === 0) {
     throw new Error('La matrícula es requerida')
@@ -77,7 +87,7 @@ export async function generateCertificateAction(matricula: string): Promise<{
 
     // PASO 1: Generar el PDF usando el mismo timestamp que está en el hash JWT
     console.log('📄 Generando PDF del certificado...')
-    const verificationUrl = `${process.env.NEXT_PUBLIC_DOMAIN || 'http://localhost:3000'}/verificar?hash=${hash}`
+    const verificationUrl = `${process.env.NEXT_PUBLIC_DOMAIN || 'http://localhost:3000'}/verificar?hash=${encodeURIComponent(hash)}`
     const qrCodeDataUrl = await PDFService.generateQRCodeDataUrl(verificationUrl)
     const pdfBuffer = await PDFService.generateCertificatePDF(
       certificateDataWithTimestamp, // Usar el mismo certificateData que está en el JWT
@@ -108,15 +118,7 @@ export async function generateCertificateAction(matricula: string): Promise<{
       console.error('❌ Error en servicio IPFS:', ipfsError)
     }
 
-    // PASO 3: Crear certificado en base de datos (con o sin IPFS hash)
-    await database.createCertificate({
-      matricula: student.matricula,
-      hash,
-      ipfs_hash: ipfsHash,
-      blockchain_tx: undefined
-    })
-
-    // PASO 4: Registrar hash en blockchain (Sepolia Testnet)
+    // PASO 3: Registrar hash en blockchain (Sepolia Testnet)
     console.log('⛓️  Registrando hash en blockchain (Sepolia Testnet)...')
     let blockchainError: string | undefined
     let blockchainTxHash: string | undefined
@@ -127,7 +129,6 @@ export async function generateCertificateAction(matricula: string): Promise<{
 
       if (blockchainResult.success && blockchainResult.transactionHash) {
         blockchainTxHash = blockchainResult.transactionHash
-        await database.updateCertificateTransaction(hash, blockchainTxHash)
         console.log(`✅ Hash registrado en blockchain: ${blockchainTxHash}`)
       } else if (!blockchainResult.success) {
         blockchainError = blockchainResult.error || 'Fallo al registrar en blockchain'
@@ -137,6 +138,14 @@ export async function generateCertificateAction(matricula: string): Promise<{
       blockchainError = e instanceof Error ? e.message : 'Configuración de blockchain inválida'
       console.error('❌ Error en servicio blockchain:', blockchainError)
     }
+
+    // PASO 4: Crear certificado en base de datos (con o sin IPFS hash / blockchain tx)
+    await database.createCertificate({
+      matricula: student.matricula,
+      hash,
+      ipfs_hash: ipfsHash,
+      blockchain_tx: blockchainTxHash
+    })
 
     // Resumen del proceso
     console.log('📊 Resumen de generación:')
@@ -168,17 +177,18 @@ export async function generateCertificateAction(matricula: string): Promise<{
 
 export async function downloadCertificateAction(hash: string): Promise<Response> {
   try {
-    const certificateData = JWTService.verifyCertificateHash(hash)
+    const normalizedHash = normalizeHash(hash)
+    const certificateData = JWTService.verifyCertificateHash(normalizedHash)
     if (!certificateData) {
       throw new Error('Hash de constancia inválido')
     }
 
-    const verificationUrl = `${process.env.NEXT_PUBLIC_DOMAIN || 'http://localhost:3000'}/verificar?hash=${hash}`
+    const verificationUrl = `${process.env.NEXT_PUBLIC_DOMAIN || 'http://localhost:3000'}/verificar?hash=${encodeURIComponent(normalizedHash)}`
     const qrCodeDataUrl = await PDFService.generateQRCodeDataUrl(verificationUrl)
 
     const pdfBuffer = await PDFService.generateCertificatePDF(
       certificateData,
-      hash,
+      normalizedHash,
       qrCodeDataUrl
     )
 
@@ -200,8 +210,10 @@ export async function verifyCertificateAction(hash: string): Promise<Verificatio
       }
     }
 
+    const normalizedHash = normalizeHash(hash)
+
     // Paso 1: Verificar hash JWT
-    const certificateData = JWTService.verifyCertificateHash(hash)
+    const certificateData = JWTService.verifyCertificateHash(normalizedHash)
     if (!certificateData) {
       return {
         isValid: false,
@@ -210,7 +222,15 @@ export async function verifyCertificateAction(hash: string): Promise<Verificatio
     }
 
     // Paso 2: Buscar certificado en base de datos
-    const certificate = await database.findCertificateByHash(hash)
+    let certificate = await database.findCertificateByHash(normalizedHash)
+    // Fallback: si en BD el hash fue truncado (por definición de columna),
+    // intentamos localizar por matrícula (extraída del JWT) y validar que el hash coincide por prefijo.
+    if (!certificate) {
+      const byMatricula = await database.findCertificateByMatricula(certificateData.matricula)
+      if (byMatricula && normalizedHash.startsWith(byMatricula.hash)) {
+        certificate = byMatricula
+      }
+    }
     if (!certificate) {
       return {
         isValid: false,
@@ -256,12 +276,22 @@ export async function verifyCertificateAction(hash: string): Promise<Verificatio
 
     try {
       const blockchainService = new BlockchainService()
-      const blockchainVerification = await blockchainService.verifyCertificate(hash)
+      const blockchainVerification = await blockchainService.verifyCertificate(normalizedHash)
       blockchainVerified = blockchainVerification.exists
       if (blockchainVerification.exists) {
         blockchainTx = certificate.blockchain_tx
       } else {
-        blockchainError = 'Constancia no registrada en blockchain'
+        // Fallback: si existe tx en BD, verificar por receipt/evento.
+        if (certificate.blockchain_tx) {
+          const byTx = await blockchainService.verifyCertificateByTransaction(certificate.blockchain_tx, normalizedHash)
+          blockchainVerified = byTx.exists
+          blockchainTx = certificate.blockchain_tx
+          if (!byTx.exists) {
+            blockchainError = byTx.error || 'Constancia no registrada en blockchain'
+          }
+        } else {
+          blockchainError = 'Constancia no registrada en blockchain'
+        }
       }
     } catch (e) {
       blockchainError = e instanceof Error ? e.message : 'Error al verificar en blockchain'

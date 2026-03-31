@@ -39,10 +39,11 @@ class DatabaseService {
   }
 
   async findCertificateByHash(hash: string): Promise<Certificate | null> {
+    console.error('hash', hash)
     const cert = await this.prisma.certificate.findUnique({
       where: { hash }
     })
-
+    console.error('cert', cert)
     return cert ? {
       id: cert.id,
       matricula: cert.matricula,

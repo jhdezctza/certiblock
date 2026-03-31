@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
       return new Response('Hash inválido', { status: 400 })
     }
 
-    const verificationUrl = `${process.env.NEXT_PUBLIC_DOMAIN || 'http://localhost:3000'}/verificar?hash=${hash}`
+    const verificationUrl = `${process.env.NEXT_PUBLIC_DOMAIN || 'http://localhost:3000'}/verificar?hash=${encodeURIComponent(hash)}`
     const qrCodeDataUrl = await PDFService.generateQRCodeDataUrl(verificationUrl)
 
     const pdfBuffer = await PDFService.generateCertificatePDF(

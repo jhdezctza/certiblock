@@ -11,6 +11,7 @@ export class BlockchainService {
   private provider: ethers.Provider
   private wallet: ethers.Wallet
   private contract: ethers.Contract
+  private contractAddress: string
 
   constructor() {
     // Configuración para Sepolia Testnet
@@ -36,6 +37,7 @@ export class BlockchainService {
       throw new Error('CONTRACT_ADDRESS inválido o no configurado. Debe ser una dirección válida del contrato desplegado en Sepolia')
     }
 
+    this.contractAddress = contractAddress
     this.provider = new ethers.JsonRpcProvider(rpcUrl)
     this.wallet = new ethers.Wallet(privateKey, this.provider)
     this.contract = new ethers.Contract(contractAddress, CONTRACT_ABI, this.wallet)
@@ -114,6 +116,53 @@ export class BlockchainService {
     } catch (error) {
       console.error('Blockchain verification error:', error)
       return { exists: false }
+    }
+  }
+
+  /**
+   * Fallback de verificación por transacción.
+   * Útil cuando la lectura del mapping no coincide (por configuración de red/contrato),
+   * pero se tiene un txHash guardado en BD.
+   */
+  async verifyCertificateByTransaction(txHash: string, expectedHash: string): Promise<{ exists: boolean; error?: string }> {
+    try {
+      if (!BlockchainService.isValidTransactionHash(txHash)) {
+        return { exists: false, error: 'Hash de transacción inválido' }
+      }
+
+      const receipt = await this.provider.getTransactionReceipt(txHash)
+      if (!receipt) return { exists: false, error: 'No se encontró el receipt de la transacción' }
+      if (receipt.status !== 1n) return { exists: false, error: 'Transacción fallida (status != 1)' }
+
+      // Verificar que el tx fue al contrato configurado
+      const to = (receipt.to || '').toLowerCase()
+      if (!to || to !== this.contractAddress.toLowerCase()) {
+        return { exists: false, error: 'La transacción no corresponde al contrato configurado' }
+      }
+
+      const iface = new ethers.Interface(CONTRACT_ABI)
+      const eventTopic = iface.getEvent('CertificateRegistered').topicHash
+
+      for (const log of receipt.logs) {
+        if (log.address.toLowerCase() !== this.contractAddress.toLowerCase()) continue
+        if (!log.topics || log.topics.length === 0) continue
+        if (log.topics[0].toLowerCase() !== eventTopic.toLowerCase()) continue
+
+        try {
+          const parsed = iface.parseLog(log)
+          const registeredHash = String(parsed.args.hash)
+          if (registeredHash === expectedHash) {
+            return { exists: true }
+          }
+        } catch {
+          // ignorar logs que no parseen
+        }
+      }
+
+      return { exists: false, error: 'No se encontró el evento CertificateRegistered para este hash' }
+    } catch (error) {
+      console.error('Error verifyCertificateByTransaction:', error)
+      return { exists: false, error: 'Error verificando por transacción' }
     }
   }
 

@@ -318,7 +318,7 @@ export default function VerificationComponent({ initialHash = '' }: Verification
                   <div className="flex justify-center">
                     <div className="text-center">
                       <QRCode
-                        value={`${typeof window !== 'undefined' ? window.location.origin : ''}/verificar?hash=${hash}`}
+                        value={`${typeof window !== 'undefined' ? window.location.origin : ''}/verificar?hash=${encodeURIComponent(hash)}`}
                         size={150}
                         style={{ height: "auto", maxWidth: "100%", width: "100%" }}
                         className="border border-gray-300 rounded-2xl p-2 bg-white"

@@ -17,7 +17,7 @@ export default function CertificatePreview({ certificateData, hash }: Certificat
   const router = useRouter()
   const [downloadInitiated, setDownloadInitiated] = useState(false)
 
-  const verificationUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/verificar?hash=${hash}`
+  const verificationUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/verificar?hash=${encodeURIComponent(hash)}`
 
   useEffect(() => {
     if (downloadInitiated) return

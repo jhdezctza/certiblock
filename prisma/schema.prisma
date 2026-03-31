@@ -31,7 +31,9 @@ model Student {
 model Certificate {
   id           Int      @id @default(autoincrement())
   matricula    String
-  hash         String   @unique
+  // JWT es largo; en MySQL String por defecto suele terminar como VARCHAR(191) y se trunca.
+  // Usamos un tamaño explícito para evitar truncamiento y que la búsqueda por hash funcione.
+  hash         String   @unique @db.VarChar(2048)
   ipfsHash     String?  @map("ipfs_hash")
   blockchainTx String?  @map("blockchain_tx")
   createdAt    DateTime @default(now()) @map("created_at")
