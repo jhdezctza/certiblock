@@ -1,0 +1,42 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./certificates.db"
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  username  String   @unique
+  name      String
+  password  String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("users")
+}
+
+model Student {
+  matricula String   @id
+  name      String
+  career    String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  certificates Certificate[]
+
+  @@map("students")
+}
+
+model Certificate {
+  id           Int      @id @default(autoincrement())
+  matricula    String
+  hash         String   @unique
+  ipfsHash     String?  @map("ipfs_hash")
+  blockchainTx String?  @map("blockchain_tx")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  student Student @relation(fields: [matricula], references: [matricula])
+
+  @@map("certificates")
+}

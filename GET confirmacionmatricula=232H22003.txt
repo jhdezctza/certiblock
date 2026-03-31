@@ -1,0 +1,32 @@
+GET /confirmacion?matricula=232H22003 200 in 969ms
+ POST /student-search 303 in 1142ms
+📄 Generando PDF del certificado...
+☁️  Subiendo PDF a IPFS...
+✅ PDF subido a IPFS: bafkreiex2fyy5w4ulmz2zz7jyfnqjeok4gl2pjl2h4acolmsznlvubsyji
+🔗 URL IPFS: https://gateway.pinata.cloud/ipfs/bafkreiex2fyy5w4ulmz2zz7jyfnqjeok4gl2pjl2h4acolmsznlvubsyji
+⛓️  Registrando hash en blockchain (Sepolia Testnet)...
+✅ Blockchain Service inicializado para Sepolia Testnet
+   Wallet: 0x43F15CDfFD88B07FC89f1e4ABC8F8A0646553874
+   Contrato: 0x3Fcd6F36d00849379A88fEAAC330BC21CacEf5Eb
+📝 Registrando hash en blockchain: eyJhbGciOiJIUzI1NiIs...
+💰 Balance disponible: 0.04795429548636197 ETH
+⛽ Gas estimado: 327423
+⏳ Transacción enviada: 0x6b4d67a1db211c0dc5224bb650eff0ec5c3b4078a1f8d7d65b523a0044d1b349
+🔗 Ver en Sepolia: https://sepolia.etherscan.io/tx/0x6b4d67a1db211c0dc5224bb650eff0ec5c3b4078a1f8d7d65b523a0044d1b349
+✅ Transacción confirmada en bloque: 9609536
+✅ Hash registrado en blockchain: 0x6b4d67a1db211c0dc5224bb650eff0ec5c3b4078a1f8d7d65b523a0044d1b349
+📊 Resumen de generación:
+   Hash JWT: eyJhbGciOiJIUzI1NiIs...
+   IPFS Hash: bafkreiex2fyy5w4ulmz2zz7jyfnqjeok4gl2pjl2h4acolmsznlvubsyji
+   Blockchain TX: 0x6b4d67a1db211c0dc5224bb650eff0ec5c3b4078a1f8d7d65b523a0044d1b349
+ POST /confirmacion?matricula=232H22003 200 in 8024ms
+ ✓ Compiled /previsualizacion in 450ms
+
+GET /previsualizacion?hash=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJuYW1lIjoiSm9zw6kgSGVybsOhbmRleiBDb3J0YXphIiwibWF0cmljdWxhIjoiMjMySDIyMDAzIiwiY2FyZWVyIjoiREdUSSIsInRpbWVzdGFtcCI6MTc2Mjg5NTY0Njg5NywiaWF0IjoxNzYyODk1NjQ2LCJleHAiOjQ5MTg2NTU2NDZ9.bHtVmf1V0Uy73ix1PXuM1ho4uNIeyMRSennTGPxnKQw 200 in 158ms
+
+
+
+✅ Blockchain Service inicializado para Sepolia Testnet
+   Wallet: 0x43F15CDfFD88B07FC89f1e4ABC8F8A0646553874
+   Contrato: 0x3Fcd6F36d00849379A88fEAAC330BC21CacEf5Eb
+ POST /verificar?hash=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJuYW1lIjoiSm9zw6kgSGVybsOhbmRleiBDb3J0YXphIiwibWF0cmljdWxhIjoiMjMySDIyMDA2IiwiY2FyZWVyIjoiREdUSSIsInRpbWVzdGFtcCI6MTc2Mjg5Nzc4MzE3NSwiaWF0IjoxNzYyODk3NzgzLCJleHAiOjQ5MTg2NTc3ODN9.G-lLGmWuKceeYttOtq3t08Z0G3uxMrxfkg2RgnM4LYc 200 in 6482ms
