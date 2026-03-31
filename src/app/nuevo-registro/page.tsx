@@ -1,9 +1,10 @@
 import StudentForm from '@/components/student/student-form'
 
 interface PageProps {
-  searchParams: { matricula?: string }
+  searchParams: Promise<{ matricula?: string }>
 }
 
-export default function NuevoRegistroPage({ searchParams }: PageProps) {
-  return <StudentForm initialMatricula={searchParams.matricula || ''} />
+export default async function NuevoRegistroPage({ searchParams }: PageProps) {
+  const { matricula } = await searchParams
+  return <StudentForm initialMatricula={matricula || ''} />
 }

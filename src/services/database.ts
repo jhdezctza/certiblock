@@ -90,14 +90,16 @@ class DatabaseService {
   }
 
   async updateCertificateTransaction(hash: string, transactionHash: string): Promise<void> {
-    await this.prisma.certificate.update({
+    // update() falla si no existe el registro. updateMany() es idempotente y evita crash en runtime.
+    await this.prisma.certificate.updateMany({
       where: { hash },
       data: { blockchainTx: transactionHash }
     })
   }
 
   async updateCertificateIPFS(hash: string, ipfsHash: string): Promise<void> {
-    await this.prisma.certificate.update({
+    // update() falla si no existe el registro. updateMany() es idempotente y evita crash en runtime.
+    await this.prisma.certificate.updateMany({
       where: { hash },
       data: { ipfsHash }
     })

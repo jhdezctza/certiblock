@@ -116,11 +116,6 @@ export async function generateCertificateAction(matricula: string): Promise<{
       blockchain_tx: undefined
     })
 
-    // Si se subió a IPFS, actualizar el registro
-    if (ipfsHash) {
-      await database.updateCertificateIPFS(hash, ipfsHash)
-    }
-
     // PASO 4: Registrar hash en blockchain (Sepolia Testnet)
     console.log('⛓️  Registrando hash en blockchain (Sepolia Testnet)...')
     let blockchainError: string | undefined

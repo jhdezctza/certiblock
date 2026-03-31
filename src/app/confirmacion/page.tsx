@@ -3,11 +3,11 @@ import { database } from '@/services/database'
 import { redirect } from 'next/navigation'
 
 interface PageProps {
-  searchParams: { matricula?: string }
+  searchParams: Promise<{ matricula?: string }>
 }
 
 export default async function ConfirmacionPage({ searchParams }: PageProps) {
-  const { matricula } = searchParams
+  const { matricula } = await searchParams
   if (!matricula) {
     redirect('/')
   }

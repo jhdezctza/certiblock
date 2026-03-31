@@ -3,15 +3,17 @@ import { JWTService } from '@/services/jwt'
 import { redirect } from 'next/navigation'
 
 interface PageProps {
-  searchParams: { hash?: string }
+  searchParams: Promise<{ hash?: string }>
 }
 
 export default async function PrevisualizacionPage({ searchParams }: PageProps) {
-  if (!searchParams.hash) {
+  const { hash } = await searchParams
+
+  if (!hash) {
     redirect('/')
   }
 
-  const certificateData = JWTService.verifyCertificateHash(searchParams.hash)
+  const certificateData = JWTService.verifyCertificateHash(hash)
 
   if (!certificateData) {
     redirect('/')
@@ -20,7 +22,7 @@ export default async function PrevisualizacionPage({ searchParams }: PageProps) 
   return (
     <CertificatePreview
       certificateData={certificateData}
-      hash={searchParams.hash}
+      hash={hash}
     />
   )
 }
