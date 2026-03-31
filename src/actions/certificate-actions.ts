@@ -92,7 +92,7 @@ export async function generateCertificateAction(matricula: string): Promise<{
 
     // PASO 1: Generar el PDF usando el mismo timestamp que está en el hash JWT
     console.log('📄 Generando PDF del certificado...')
-    const verificationUrl = `${process.env.NEXT_PUBLIC_DOMAIN || 'http://localhost:3000'}/verificar?hash=${encodeURIComponent(hash)}`
+    const verificationUrl = `https://www.certiblock.lat/verificar?hash=${encodeURIComponent(hash)}`
     const qrCodeDataUrl = await PDFService.generateQRCodeDataUrl(verificationUrl)
     const pdfBuffer = await PDFService.generateCertificatePDF(
       certificateDataWithTimestamp, // Usar el mismo certificateData que está en el JWT
@@ -189,7 +189,7 @@ export async function downloadCertificateAction(hash: string): Promise<Response>
       throw new Error('Hash de constancia inválido')
     }
 
-    const verificationUrl = `${process.env.NEXT_PUBLIC_DOMAIN || 'http://localhost:3000'}/verificar?hash=${encodeURIComponent(normalizedHash)}`
+    const verificationUrl = `https://www.certiblock.lat/verificar?hash=${encodeURIComponent(normalizedHash)}`
     const qrCodeDataUrl = await PDFService.generateQRCodeDataUrl(verificationUrl)
 
     const pdfBuffer = await PDFService.generateCertificatePDF(
